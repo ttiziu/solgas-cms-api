@@ -1,0 +1,17 @@
+# Copia a application-local.properties y arranca con SPRING_PROFILES_ACTIVE=local
+spring.datasource.url=jdbc:postgresql://HOST:5432/postgres
+spring.datasource.username=
+spring.datasource.password=
+
+r2.access-key=
+r2.secret-key=
+r2.endpoint=https://ACCOUNT_ID.r2.cloudflarestorage.com
+r2.bucket=solgas-cms-images
+r2.public-url=https://pub-xxxxx.r2.dev
+
+app.jwt.secret=cambia-este-secret-en-local
+app.cors.allowed-origins=http://localhost:3000
+
+app.revalidate.secret=dev-revalidate-secret
+app.revalidate.webhooks.solgasenlima=http://localhost:3000/api/revalidate
+app.revalidate.webhooks.surquillo=http://localhost:3001/api/revalidate
