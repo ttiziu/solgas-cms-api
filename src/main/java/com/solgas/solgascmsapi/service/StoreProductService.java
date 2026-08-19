@@ -13,6 +13,7 @@ import com.solgas.solgascmsapi.repository.StoreProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -39,16 +40,15 @@ public class StoreProductService {
 
     public List<ProductResponse> listPublic(String siteSlug) {
         siteService.require(siteSlug);
-        return productRepository.findBySite_SlugAndActiveTrueOrderBySortOrderAsc(siteSlug).stream()
-                .map(this::toResponse)
-                .toList();
+        List<StoreProduct> products =
+                productRepository.findBySite_SlugAndActiveTrueOrderBySortOrderAsc(siteSlug);
+        return mapProducts(products, primaryImagesBySection(siteSlug));
     }
 
     public List<ProductResponse> listAll(String siteSlug) {
         siteService.require(siteSlug);
-        return productRepository.findBySite_SlugOrderBySortOrderAsc(siteSlug).stream()
-                .map(this::toResponse)
-                .toList();
+        List<StoreProduct> products = productRepository.findBySite_SlugOrderBySortOrderAsc(siteSlug);
+        return mapProducts(products, primaryImagesBySection(siteSlug));
     }
 
     public ProductResponse create(String siteSlug, CreateProductRequest request) {
@@ -124,15 +124,36 @@ public class StoreProductService {
                 .orElseThrow(ProductNotFoundException::new);
     }
 
+    private Map<String, ImageAsset> primaryImagesBySection(String siteSlug) {
+        Map<String, ImageAsset> bySection = new LinkedHashMap<>();
+        for (ImageAsset image : imageRepository.findBySite_SlugOrderByCreatedAtDesc(siteSlug)) {
+            bySection.putIfAbsent(image.getSection(), image);
+        }
+        return bySection;
+    }
+
+    private List<ProductResponse> mapProducts(
+            List<StoreProduct> products, Map<String, ImageAsset> imagesBySection) {
+        return products.stream()
+                .map(product -> toResponse(product, imagesBySection.get(product.getProductKey())))
+                .toList();
+    }
+
     private ProductResponse toResponse(StoreProduct product) {
         String siteSlug = product.getSite().getSlug();
-        var cmsImages = imageRepository.findBySite_SlugAndSectionOrderByCreatedAtDesc(
-                siteSlug, product.getProductKey());
-        var cmsImage = cmsImages.stream().findFirst();
+        ImageAsset cmsImage = imageRepository
+                .findBySite_SlugAndSectionOrderByCreatedAtDesc(siteSlug, product.getProductKey())
+                .stream()
+                .findFirst()
+                .orElse(null);
+        return toResponse(product, cmsImage);
+    }
 
-        String imageUrl = cmsImage.map(ImageAsset::getUrl)
-                .orElseGet(() -> normalizeFallback(product.getFallbackImageUrl()));
-        Long cmsImageId = cmsImage.map(ImageAsset::getId).orElse(null);
+    private ProductResponse toResponse(StoreProduct product, ImageAsset cmsImage) {
+        String imageUrl = cmsImage != null
+                ? cmsImage.getUrl()
+                : normalizeFallback(product.getFallbackImageUrl());
+        Long cmsImageId = cmsImage != null ? cmsImage.getId() : null;
 
         return new ProductResponse(
                 product.getProductKey(),
