@@ -152,7 +152,7 @@ public class StoreProductService {
     private ProductResponse toResponse(StoreProduct product, ImageAsset cmsImage) {
         String imageUrl = cmsImage != null
                 ? cmsImage.getUrl()
-                : normalizeFallback(product.getFallbackImageUrl());
+                : publicImageUrl(product.getFallbackImageUrl());
         Long cmsImageId = cmsImage != null ? cmsImage.getId() : null;
 
         return new ProductResponse(
@@ -170,5 +170,14 @@ public class StoreProductService {
 
     private static String normalizeFallback(String url) {
         return url == null ? "" : url.trim();
+    }
+
+    /** Solo URLs absolutas (R2/CDN); rutas locales legacy no se exponen al público. */
+    private static String publicImageUrl(String fallback) {
+        String normalized = normalizeFallback(fallback);
+        if (normalized.startsWith("https://") || normalized.startsWith("http://")) {
+            return normalized;
+        }
+        return "";
     }
 }
